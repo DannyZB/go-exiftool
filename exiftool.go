@@ -196,7 +196,7 @@ func (e *Exiftool) ExtractMetadata(files ...string) []FileMetadata {
 			scanErr := e.scanMergedOut.Err()
 			if scanErr != nil {
 				fms[i].Err = fmt.Errorf("error while reading stdMergedOut: %w", scanErr)
-				continue
+				// continue
 			}
 		case <-timeout:
 			// Timeout occurred
