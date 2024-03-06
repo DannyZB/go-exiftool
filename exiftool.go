@@ -145,7 +145,7 @@ func (e *Exiftool) ExtractMetadata(files ...string) []FileMetadata {
 	defer e.lock.Unlock()
 
 	fms := make([]FileMetadata, len(files))
-	timeout := time.After(5 * time.Second) // Set your desired timeout duration here
+	timeout := time.After(1 * time.Second) // Set your desired timeout duration here
 
 	for i, f := range files {
 		fms[i].File = f
@@ -201,7 +201,7 @@ func (e *Exiftool) ExtractMetadata(files ...string) []FileMetadata {
 		case <-timeout:
 			// Timeout occurred
 			fms[i].Err = fmt.Errorf("timeout while reading stdMergedOut")
-			continue
+			return fms
 		}
 
 		// Process the scanned data
@@ -437,7 +437,7 @@ func ClearFieldsBeforeWriting() func(*Exiftool) error {
 	}
 }
 
-// SetExiftoolBinaryPath sets exiftool's binary path. When not specified, the binary will have to be in $PATH
+// SetExiftoolBinary sets exiftool's binary path. When not specified, the binary will have to be in $PATH
 // Sample :
 //   e, err := NewExiftool(SetExiftoolBinaryPath("/usr/bin/exiftool"))
 func SetExiftoolBinaryPath(p string) func(*Exiftool) error {
