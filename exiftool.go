@@ -63,7 +63,9 @@ func NewExiftool(opts ...func(*Exiftool) error) (*Exiftool, error) {
 		}
 	}
 
-	args := append([]string(nil), "-m", "-q",initArgs...)
+	initArgs = append(initArgs, "-m")
+	initArgs = append(initArgs, "-q")
+	args := append([]string(nil), initArgs...)
 	if len(e.extraInitArgs) > 0 {
 		args = append(args, "-common_args")
 		args = append(args, e.extraInitArgs...)
