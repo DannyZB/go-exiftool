@@ -70,6 +70,8 @@ func NewExiftool(opts ...func(*Exiftool) error) (*Exiftool, error) {
 	}
 
 	e.cmd = exec.Command(e.exiftoolBinPath, args...)
+	e.cmd.Env = append(os.Environ(), "LC_ALL=C", "LANG=C")
+
 	r, w := io.Pipe()
 	e.stdMergedOut = r
 
