@@ -139,17 +139,18 @@ func (e *Exiftool) Close() error {
 
 	return nil
 }
-
-// ExtractMetadata extracts metadata from files
+// ExtractMetadata extracts metadata from files with a timeout
 func (e *Exiftool) ExtractMetadata(files ...string) []FileMetadata {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
 	fms := make([]FileMetadata, len(files))
+	timeout := time.After(5 * time.Second) // Set your desired timeout duration here
 
 	for i, f := range files {
 		fms[i].File = f
 
+		// Check if the file exists and is not a directory
 		s, err := os.Stat(f)
 		if err != nil {
 			fms[i].Err = err
@@ -158,19 +159,18 @@ func (e *Exiftool) ExtractMetadata(files ...string) []FileMetadata {
 			}
 			continue
 		}
-
 		if s.IsDir() {
 			fms[i].Err = ErrNotFile
 			continue
 		}
 
+		// Prepare to scan metadata
 		for _, curA := range extractArgs {
 			if _, err := fmt.Fprintln(e.stdin, curA); err != nil {
 				fms[i].Err = err
 				continue
 			}
 		}
-
 		if _, err := fmt.Fprintln(e.stdin, f); err != nil {
 			fms[i].Err = err
 			continue
@@ -180,33 +180,41 @@ func (e *Exiftool) ExtractMetadata(files ...string) []FileMetadata {
 			continue
 		}
 
-		scanOk := e.scanMergedOut.Scan()
-		scanErr := e.scanMergedOut.Err()
-		if scanErr != nil {
-			if scanErr == bufio.ErrTooLong {
-				fms[i].Err = ErrBufferTooSmall
+		// Use a channel to signal the completion of the scan operation
+		scanDone := make(chan bool)
+
+		// Run the scan operation in a goroutine
+		go func() {
+			e.scanMergedOut.Scan()
+			scanDone <- true
+		}()
+
+		// Wait for either the scan to complete or the timeout to occur
+		select {
+		case <-scanDone:
+			// Scan completed successfully
+			scanErr := e.scanMergedOut.Err()
+			if scanErr != nil {
+				fms[i].Err = fmt.Errorf("error while reading stdMergedOut: %w", scanErr)
 				continue
 			}
-			fms[i].Err = fmt.Errorf("error while reading stdMergedOut: %w", e.scanMergedOut.Err())
-			continue
-		}
-		if !scanOk {
-			fms[i].Err = fmt.Errorf("error while reading stdMergedOut: EOF")
+		case <-timeout:
+			// Timeout occurred
+			fms[i].Err = fmt.Errorf("timeout while reading stdMergedOut")
 			continue
 		}
 
+		// Process the scanned data
 		var m []map[string]interface{}
 		if err := json.Unmarshal(e.scanMergedOut.Bytes(), &m); err != nil {
-			fms[i].Err = fmt.Errorf("error during unmarshaling (%v): %w)", string(e.scanMergedOut.Bytes()), err)
+			fms[i].Err = fmt.Errorf("error during unmarshaling (%v): %w", string(e.scanMergedOut.Bytes()), err)
 			continue
 		}
-
 		fms[i].Fields = m[0]
 	}
 
 	return fms
 }
-
 // WriteMetadata writes the given metadata for each file.
 // Any errors will be saved to FileMetadata.Err
 // Note: If you're reusing an existing FileMetadata instance,
