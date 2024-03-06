@@ -145,7 +145,7 @@ func (e *Exiftool) ExtractMetadata(files ...string) []FileMetadata {
 	defer e.lock.Unlock()
 
 	fms := make([]FileMetadata, len(files))
-	timeout := time.After(1 * time.Second) // Set your desired timeout duration here
+	timeout := time.After(500 * time.Millisecond) // Set your desired timeout duration here
 
 	for i, f := range files {
 		fms[i].File = f
